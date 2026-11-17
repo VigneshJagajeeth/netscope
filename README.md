@@ -57,6 +57,7 @@ to investigate with.
 | **Port mapping** | `-p 8080:8080` (dashboard), `-p 8081:80` (demo-web) |
 | Container management | `podman ps / inspect / logs / top / stats / stop / start / restart / rm`, plus the **Manage** buttons in the dashboard |
 | Troubleshooting | `podman logs`, `podman exec`, `podman healthcheck run`, NetScope diagnostics + matrix, and a deliberately broken container (`demo-worker`) to find and fix |
+| Testing | `podman exec netscope netscope selftest` (26 end-to-end tests) + `pytest` (23 unit tests) + [docs/TEST-PLAN.md](docs/TEST-PLAN.md) |
 | Lifecycle: push/pull, versioning | `podman tag` → `podman push` → `podman pull`; tags `1.0`, `1.1`, `latest` |
 | README with commands | This file. Every command is listed below. |
 | GitHub upload | See section 7 |
@@ -111,7 +112,9 @@ netscope/
 │   ├── diagnostics.py         # ping, latency, DNS, scan, HTTP, traceroute, interfaces
 │   ├── engine.py              # Podman API: discovery, management, stats, matrix
 │   ├── store.py               # SQLite history (in the /data volume)
+│   ├── selftest.py            # end-to-end self-test (netscope selftest)
 │   └── static/                # dashboard (HTML/CSS/JS, no build step)
+├── docs/TEST-PLAN.md          # test scenario + test cases
 ├── scripts/
 │   ├── podman-up.bat / .sh    # build + network + volume + run (prints every command)
 │   ├── podman-down.bat / .sh  # remove containers + networks (keeps the volume)
@@ -287,6 +290,7 @@ podman exec netscope netscope logs demo-worker
 podman exec netscope netscope manage demo-api restart
 podman exec netscope netscope report --save           # writes to the bind mount
 podman exec netscope netscope history
+podman exec netscope netscope selftest              # 26 end-to-end tests
 ```
 
 **Debugging inside any container's network namespace** (for images with no tools):
@@ -438,6 +442,20 @@ Interactive docs: **http://localhost:8080/docs**
 ---
 
 ## Testing
+
+The full test scenario and test cases (for the report) are in **[docs/TEST-PLAN.md](docs/TEST-PLAN.md)**.
+
+**End-to-end self-test of the running deployment (26 test cases):**
+
+```bash
+podman exec netscope netscope selftest
+```
+
+It checks the web app, the Podman API connection, container discovery, networks
+(including the internal flags), port mapping, volume + bind mount, every
+diagnostic tool, the connectivity matrix, lifecycle actions (stop, start,
+pause, restart), logs, inspect, top, stats, history persistence and report
+export. It prints a PASS/FAIL table and saves it to `reports/selftest-*.txt`.
 
 Unit and API tests (no container engine needed):
 

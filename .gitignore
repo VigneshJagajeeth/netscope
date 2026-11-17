@@ -7,4 +7,5 @@ venv/
 .env
 
 # NetScope saved reports (bind mount)
-reports/*.json
+reports/*
+!reports/.gitkeep

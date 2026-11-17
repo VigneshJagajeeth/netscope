@@ -8,6 +8,7 @@ Examples (inside the container):
     netscope trace 8.8.8.8
     netscope containers
     netscope matrix
+    netscope selftest
     netscope logs demo-worker
     netscope manage demo-api restart
     netscope serve --port 8080
@@ -146,6 +147,9 @@ def main(argv: list[str] | None = None) -> int:
     sp = add("logs", "show a container's logs"); sp.add_argument("name"); sp.add_argument("-n", "--tail", type=int, default=50)
     sp = add("manage", "start/stop/restart/pause/unpause a container")
     sp.add_argument("name"); sp.add_argument("action", choices=["start", "stop", "restart", "pause", "unpause"])
+    sp = add("selftest", "end-to-end test of the whole running deployment (PASS/FAIL table)")
+    sp.add_argument("--base", default="http://127.0.0.1:8080", help="NetScope URL (default: this container)")
+    sp.add_argument("--no-save", action="store_true", help="don't write results to /reports")
     sp = add("report", "build a JSON report (environment, containers, networks, history)")
     sp.add_argument("--save", action="store_true", help="write it to $NETSCOPE_REPORTS_DIR (/reports)")
 
@@ -242,6 +246,10 @@ def main(argv: list[str] | None = None) -> int:
         _save(r)
         _print_result(r, a.json)
         return 0
+
+    if a.cmd == "selftest":
+        from .selftest import main as selftest_main
+        return selftest_main(a.base, save=not a.no_save, as_json=a.json)
 
     if a.cmd == "report":
         import asyncio as _a
