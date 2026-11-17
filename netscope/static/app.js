@@ -263,7 +263,7 @@ function renderTopology(t) {
     return `<g class="topo-node ${c.status !== "running" ? "down" : ""}" transform="translate(${conX(i)},${cy})">
       <rect width="${nodeW}" height="${nodeH(c)}" rx="8"/>
       <text x="${nodeW / 2}" y="20" text-anchor="middle" font-weight="600">${esc(short(c.name, 22))}</text>
-      <text class="sub" x="${nodeW / 2}" y="35" text-anchor="middle">${esc(short(c.image || "", 24))}${c.ports.length ? " · :" + esc(c.ports.slice(0, 2).join(",:")) : ""}</text>
+      <text class="sub" x="${nodeW / 2}" y="35" text-anchor="middle">${esc(short((c.image || "").split("/").pop(), 17))}${c.ports.length ? " · :" + esc(c.ports.slice(0, 1).join("")) : ""}</text>
       ${ips || `<text class="sub" x="${nodeW / 2}" y="52" text-anchor="middle">${esc(c.network_mode || "")}</text>`}
     </g>`;
   }).join("");
