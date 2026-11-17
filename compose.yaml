@@ -1,0 +1,77 @@
+# ---------------------------------------------------------------------------
+# OPTIONAL: run the whole stack with `podman compose up -d --build`.
+# The main way is scripts/podman-up.bat / scripts/podman-up.sh, which run the
+# individual podman commands listed in the README.
+#
+# ENGINE_SOCKET must be the Podman API socket path *as seen by Podman*:
+#   podman info --format "{{.Host.RemoteSocket.Path}}"
+# Put it in a .env file (see .env.example). For Docker use /var/run/docker.sock.
+# ---------------------------------------------------------------------------
+name: netscope
+
+services:
+  netscope:
+    build:
+      context: .
+      dockerfile: Containerfile
+    image: ${NETSCOPE_IMAGE:-localhost/netscope:1.0}
+    container_name: netscope
+    ports:
+      - "${NETSCOPE_PORT:-8080}:8080"
+    volumes:
+      - ${ENGINE_SOCKET:-/run/podman/podman.sock}:/run/podman/podman.sock   # Podman API
+      - netscope-data:/data                                                  # named volume
+      - ./reports:/reports                                                   # bind mount
+    security_opt:
+      - label=disable          # allow socket access on SELinux hosts
+    cap_add: [NET_RAW, NET_ADMIN]
+    networks: [frontend, backend]
+    restart: unless-stopped
+
+  web:
+    image: docker.io/library/nginx:alpine
+    container_name: demo-web
+    ports: ["8081:80"]
+    networks: [frontend]
+
+  api:
+    image: docker.io/library/python:3.12-slim
+    container_name: demo-api
+    command: ["python", "-m", "http.server", "8000"]
+    expose: ["8000"]
+    networks: [frontend, backend]
+
+  cache:
+    image: docker.io/library/redis:7-alpine
+    container_name: demo-cache
+    networks: [backend]
+
+  db:
+    image: docker.io/library/postgres:16-alpine
+    container_name: demo-db
+    environment:
+      POSTGRES_PASSWORD: netscope-demo
+    networks: [backend]
+
+  worker:
+    image: docker.io/library/python:3.12-slim
+    container_name: demo-worker
+    # BUG ON PURPOSE: bound to localhost, so peers get "connection refused"
+    command: ["python", "-m", "http.server", "9000", "--bind", "127.0.0.1"]
+    expose: ["9000"]
+    networks: [backend]
+
+  vault:
+    image: docker.io/library/nginx:alpine
+    container_name: demo-vault
+    networks: [isolated]
+
+networks:
+  frontend: {}
+  backend:
+    internal: true
+  isolated:
+    internal: true
+
+volumes:
+  netscope-data:

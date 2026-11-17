@@ -1,0 +1,6 @@
+# Keep Linux scripts with LF endings and Windows scripts with CRLF,
+# so the project works after cloning on both Windows and Red Hat Linux.
+*.sh   text eol=lf
+*.bat  text eol=crlf
+*.py   text eol=lf
+Containerfile text eol=lf

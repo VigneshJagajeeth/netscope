@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NetScope · Container Network Diagnostics</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%2322d3ee' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%2322d3ee'/%3E%3C/svg%3E">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" class="logo"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2.5"/><circle cx="16" cy="16" r="7" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".5"/><circle cx="16" cy="16" r="3" fill="currentColor"/><line x1="16" y1="16" x2="27" y2="9" stroke="currentColor" stroke-width="2"/></svg>
+      <div>
+        <div class="brand-name">NetScope</div>
+        <div class="brand-sub">Container Network Diagnostics</div>
+      </div>
+    </div>
+    <nav id="nav">
+      <a data-view="overview" class="active">Overview</a>
+      <a data-view="containers">Containers</a>
+      <a data-view="topology">Topology</a>
+      <a data-view="tools">Diagnostics</a>
+      <a data-view="matrix">Connectivity Matrix</a>
+      <a data-view="history">History</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div id="engine-pill" class="pill pill-muted">Engine: checking…</div>
+      <div class="muted small" id="version"></div>
+      <a class="muted small" href="/docs" target="_blank">REST API docs ↗</a>
+    </div>
+  </aside>
+
+  <main>
+    <!-- OVERVIEW -->
+    <section id="view-overview" class="view active">
+      <header class="view-head">
+        <h1>Overview</h1>
+        <button class="btn ghost" onclick="loadOverview()">Refresh</button>
+      </header>
+      <div id="engine-banner"></div>
+      <div class="cards" id="stat-cards"></div>
+      <div class="grid-2">
+        <div class="panel">
+          <h2>Interfaces <span class="muted small" id="ns-host"></span></h2>
+          <div id="iface-table"></div>
+        </div>
+        <div class="panel">
+          <h2>Routing table</h2>
+          <div id="route-table"></div>
+          <h2 class="mt">DNS configuration</h2>
+          <div id="dns-conf"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Recent diagnostics</h2>
+        <div id="recent-runs"></div>
+      </div>
+    </section>
+
+    <!-- CONTAINERS -->
+    <section id="view-containers" class="view">
+      <header class="view-head">
+        <h1>Containers</h1>
+        <div>
+          <label class="check"><input type="checkbox" id="show-stopped" checked> show stopped</label>
+          <button class="btn ghost" onclick="loadContainers(true)">Refresh + traffic stats</button>
+        </div>
+      </header>
+      <div class="panel"><div id="containers-table"></div></div>
+      <div id="container-detail"></div>
+      <div class="panel">
+        <h2>Networks</h2>
+        <div id="networks-table"></div>
+      </div>
+    </section>
+
+    <!-- TOPOLOGY -->
+    <section id="view-topology" class="view">
+      <header class="view-head">
+        <h1>Network topology</h1>
+        <button class="btn ghost" onclick="loadTopology()">Refresh</button>
+      </header>
+      <p class="muted">Containers can only reach each other by name when they share a network (Podman's aardvark-dns only answers for containers on the same network). Internal networks (<code>podman network create --internal</code>) have no route to the outside world.</p>
+      <div class="panel topo-wrap"><div id="topology"></div></div>
+    </section>
+
+    <!-- TOOLS -->
+    <section id="view-tools" class="view">
+      <header class="view-head"><h1>Diagnostics</h1></header>
+      <div class="tool-tabs" id="tool-tabs">
+        <button data-tool="ping" class="active">Ping</button>
+        <button data-tool="latency">TCP Latency</button>
+        <button data-tool="dns">DNS Lookup</button>
+        <button data-tool="scan">Port Scan</button>
+        <button data-tool="http">HTTP Check</button>
+        <button data-tool="traceroute">Traceroute</button>
+      </div>
+      <form class="panel tool-form" id="tool-form" autocomplete="off">
+        <div id="tool-fields" class="fields"></div>
+        <button class="btn primary" type="submit" id="run-btn">Run</button>
+      </form>
+      <datalist id="hosts"></datalist>
+      <div id="tool-result"></div>
+    </section>
+
+    <!-- MATRIX -->
+    <section id="view-matrix" class="view">
+      <header class="view-head">
+        <h1>Connectivity matrix</h1>
+        <button class="btn primary" id="matrix-btn" onclick="runMatrix()">Run matrix</button>
+      </header>
+      <p class="muted">For every running container, NetScope starts a short-lived probe container inside that container's network namespace (<code>--network container:&lt;name&gt;</code>) and tries to reach every other container's exposed ports. Results are compared with what the network design says <em>should</em> happen.</p>
+      <div class="legend">
+        <span><i class="sw ok"></i>reachable (expected)</span>
+        <span><i class="sw iso"></i>blocked (isolated by design)</span>
+        <span><i class="sw bad"></i>should work but fails</span>
+        <span><i class="sw warn"></i>reachable without shared network</span>
+      </div>
+      <div class="panel" id="matrix-out"><p class="muted">Not run yet.</p></div>
+      <div id="matrix-findings"></div>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="view-history" class="view">
+      <header class="view-head">
+        <h1>History</h1>
+        <div>
+          <button class="btn primary" onclick="saveReport()">Save report to /reports</button>
+          <a class="btn ghost" href="/api/report" download>Download JSON report</a>
+          <button class="btn danger" onclick="clearHistory()">Clear</button>
+        </div>
+      </header>
+      <div class="panel"><div id="history-table"></div></div>
+      <div id="history-detail"></div>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
